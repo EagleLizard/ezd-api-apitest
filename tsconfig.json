@@ -1,0 +1,41 @@
+
+/*
+references:
+  - my recent TS projects
+  - https://2ality.com/2025/01/tsconfig-json.html
+_*/
+
+{
+  "compilerOptions": {
+    // "target": "ES2022",
+    "target": "ESNext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "lib": [
+      "ESNext", // for Array.toSorted,
+      // "DOM" // for HeadersInit
+    ],
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    /* extend fastify types _*/
+    "declaration": true,
+    /*
+    needed for vitest because of rollup4
+    needed for mqtt.js because of ws types
+    _*/
+    // "skipLibCheck": true
+  },
+
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "./dist",
+    "./node_modules"
+  ]
+}
