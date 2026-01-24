@@ -2,7 +2,7 @@
 /* typebox utils */
 
 import { Static, TSchema } from 'typebox';
-import { DecodeError, Value } from 'typebox/value';
+import { DecodeError, ParseError, Value } from 'typebox/value';
 import { EzdError } from '../error/ezd-error';
 
 export const tbUtil = {
@@ -14,7 +14,7 @@ function decodeWithSchema<S extends TSchema>(tschema: S, rawVal: unknown): Stati
   try {
     decoded = Value.Parse(tschema, rawVal);
   } catch(e) {
-    if(!(e instanceof DecodeError)) {
+    if(!(e instanceof DecodeError || e instanceof ParseError)) {
       throw e;
     }
     let errs = Value.Errors(tschema, rawVal);
