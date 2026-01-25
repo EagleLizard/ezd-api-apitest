@@ -1,7 +1,7 @@
 
 import assert from 'node:assert';
 
-import { afterAll, beforeAll, describe, expect, test  } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, test  } from 'vitest';
 
 import { apitestConfig } from '../lib/apitest-config';
 import { authUtil } from '../lib/auth/auth-util';
@@ -11,11 +11,12 @@ import { datetimeUtil } from '../lib/util/datetime-util';
 import { EzdRoleSchema } from '../lib/models/ezd-role';
 import { EzdError } from '../lib/error/ezd-error';
 import { ezdPermissionSchema } from '../lib/models/ezd-permission';
+import { HttpClient } from '../lib/http-client';
 
 const { EZD_API_BASE_URL } = apitestConfig;
 
 describe('user tests', () => {
-  let apitestJwt: string;
+  let apiJwt: string;
   let apiUser: EzdUser;
   let registerUserName: string;
   let registerUserEmail: string;
@@ -24,12 +25,18 @@ describe('user tests', () => {
   let user1Name: string;
   let user1Email: string;
   let user1: EzdUser | undefined;
+  let hc: HttpClient;
   /* cleanup _*/
   let testUsers: EzdUser[] = [];
 
+  beforeEach(() => {
+    hc = HttpClient.init();
+  });
+
   beforeAll(async () => {
+    hc ??= HttpClient.init().withJwt(apiJwt);
     apiUser = globalThis.ezdCtx.apiUser;
-    apitestJwt = authUtil.getJwt(apiUser.user_id);
+    apiJwt = authUtil.getJwt(apiUser.user_id);
 
     let nowDtStr = datetimeUtil.alphaNumericDateTime();
     registerUserName = `apitest_${nowDtStr}`;
@@ -40,16 +47,11 @@ describe('user tests', () => {
     user1Email = `ezdapitest+${user1Name}@gmail.com`;
 
     let url = `${EZD_API_BASE_URL}/v1/user`;
-    let createUserResp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apitestJwt}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    let createUserResp = await hc.withJwt(apiJwt).post(url, {
+      body: {
         userName: user1Name,
         email: user1Email,
-      }),
+      },
     });
     if(createUserResp.status !== 200) {
       throw new EzdError(`Error creating user, username: ${user1Name}`, 'EAT_1.2');
@@ -66,12 +68,8 @@ describe('user tests', () => {
     for(let i = 0; i < testUsers.length; i++) {
       let testUser = testUsers[i];
       console.log(`cleaning up test user: ${testUser.user_name}`);
-      let getUserResp = await fetch(`${EZD_API_BASE_URL}/v1/user/${testUser.user_name}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apitestJwt}`,
-        },
-      });
+      let getUserResp = await hc.withJwt(apiJwt)
+        .get(`${EZD_API_BASE_URL}/v1/user/${testUser.user_name}`);
       if(getUserResp.status !== 200 && getUserResp.status !== 404) {
         throw new EzdError(`${
           getUserResp.status
@@ -81,12 +79,8 @@ describe('user tests', () => {
       }
       if(getUserResp.status === 200) {
         /* delete */
-        let delResp = await fetch(`${EZD_API_BASE_URL}/v1/user/${testUser.user_id}`, {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${apitestJwt}`,
-          },
-        });
+        let delResp = await hc.withJwt(apiJwt)
+          .delete(`${EZD_API_BASE_URL}/v1/user/${testUser.user_id}`);
         if(delResp.status !== 200) {
           throw new EzdError(`${
             delResp.status
@@ -100,11 +94,7 @@ describe('user tests', () => {
 
   test('tests whoami', async () => {
     let url = `${EZD_API_BASE_URL}/v1/user/whoami`;
-    let whoamiResp = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${apitestJwt}`,
-      }
-    });
+    let whoamiResp = await hc.withJwt(apiJwt).get(url);
     expect(whoamiResp.status).toBe(200);
     let respBody = await whoamiResp.json();
     assert(prim.isObject(respBody) && prim.isObject(respBody.user));
@@ -117,12 +107,7 @@ describe('user tests', () => {
       name: user1.user_name,
     });
     let url = `${EZD_API_BASE_URL}/v1/user?${qsp.toString()}`;
-    let getUserResp = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apitestJwt}`,
-      }
-    });
+    let getUserResp = await hc.withJwt(apiJwt).get(url);
     expect(getUserResp.status).toBe(200);
     let rawResp = await getUserResp.json();
     assert(prim.isObject(rawResp));
@@ -133,17 +118,12 @@ describe('user tests', () => {
 
   test('register new user', async () => {
     let url = `${EZD_API_BASE_URL}/v1/users/register`;
-    let body = {
-      userName: registerUserName,
-      email: registerUserEmail,
-      password: registerUserPw,
-    } as const;
-    let registerResp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+    let registerResp = await hc.post(url, {
+      body: {
+        userName: registerUserName,
+        email: registerUserEmail,
+        password: registerUserPw,
+      }
     });
     expect(registerResp.status).toBe(200);
     let rawRespBody = await registerResp.json();
@@ -159,12 +139,7 @@ describe('user tests', () => {
       name: user1.user_name,
     });
     let url = `${EZD_API_BASE_URL}/v1/user?${usp.toString()}`;
-    let getUserResp = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${testUserJwt}`,
-      }
-    });
+    let getUserResp = await hc.withJwt(testUserJwt).get(url);
     expect(getUserResp.status).toBe(200);
     let getUserRawResp = await getUserResp.json();
     assert(prim.isObject(getUserRawResp));
@@ -185,13 +160,7 @@ describe('user tests', () => {
       userName: registerUser.user_name,
       password: registerUserPw,
     } as const;
-    let loginResp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    let loginResp = await hc.post(url, { body });
     expect(loginResp.status).toBe(200);
     let rawRespBody = await loginResp.json();
     assert(prim.isObject(rawRespBody) && prim.isObject(rawRespBody.user));
@@ -202,12 +171,7 @@ describe('user tests', () => {
   test(`new user has 'Default' role only`, async () => {
     assert(user1 !== undefined);
     let url = `${EZD_API_BASE_URL}/v1/user/${user1.user_id}/role`;
-    let roleResp = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apitestJwt}`,
-      }
-    });
+    let roleResp = await hc.withJwt(apiJwt).get(url);
     expect(roleResp.status).toBe(200);
     let respBody = await roleResp.json();
     assert(Array.isArray(respBody));
@@ -220,29 +184,18 @@ describe('user tests', () => {
     assert(user1 !== undefined);
     let testRoleName = 'Test';
     let url = `${EZD_API_BASE_URL}/v1/user/${user1.user_id}/role`;
-    let body = {
-      roles: [ testRoleName ],
-    } as const;
-    let addRoleResp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apitestJwt}`,
+    let addRoleResp = await hc.withJwt(apiJwt).post(url, {
+      body: {
+        roles: [ testRoleName ],
       },
-      body: JSON.stringify(body),
     });
     expect(addRoleResp.status).toBe(200);
-    let getRolesResp = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apitestJwt}`,
-      },
-    });
+    let getRolesResp = await hc.withJwt(apiJwt).get(url);
     expect(getRolesResp.status).toBe(200);
     let rawRespBody = await getRolesResp.json();
-    assert(Array.isArray(rawRespBody));
+    assert(Array.isArray(rawRespBody) && rawRespBody.every(prim.isObject));
     let foundRole = rawRespBody.find(rawRole => {
-      return rawRole?.name === testRoleName;
+      return rawRole.name === testRoleName;
     });
     expect(foundRole).toBeDefined();
     expect(foundRole?.name).toBe(testRoleName);
@@ -251,12 +204,7 @@ describe('user tests', () => {
   test('list user permissions', async () => {
     assert(user1 !== undefined);
     let url = `${EZD_API_BASE_URL}/v1/user/${user1.user_id}/permission`;
-    let getPermissionsResp = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apitestJwt}`,
-      },
-    });
+    let getPermissionsResp = await hc.withJwt(apiJwt).get(url);
     expect(getPermissionsResp.status).toBe(200);
     let rawRespBody = await getPermissionsResp.json();
     assert(Array.isArray(rawRespBody) && rawRespBody.every(prim.isObject));
@@ -272,20 +220,10 @@ describe('user tests', () => {
     assert(user1 !== undefined);
     let testRoleName = 'Test';
     let url = `${EZD_API_BASE_URL}/v1/user/${user1.user_id}/role/${testRoleName}`;
-    let delRoleResp = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${apitestJwt}`,
-      },
-    });
+    let delRoleResp = await hc.withJwt(apiJwt).delete(url);
     expect(delRoleResp.status).toBe(200);
     url = `${EZD_API_BASE_URL}/v1/user/${user1.user_id}/role`;
-    let getRolesResp = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apitestJwt}`,
-      },
-    });
+    let getRolesResp = await hc.withJwt(apiJwt).get(url);
     expect(getRolesResp.status).toBe(200);
     let rawRespBody = await getRolesResp.json();
     assert(Array.isArray(rawRespBody));
@@ -298,22 +236,13 @@ describe('user tests', () => {
   test('tests delete user', async () => {
     assert(user1 !== undefined);
     let url = `${EZD_API_BASE_URL}/v1/user/${user1.user_id}`;
-    let resp = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${apitestJwt}`,
-      }
-    });
+    let resp = await hc.withJwt(apiJwt).delete(url);
     expect(resp.status).toBe(200);
     let usp = new URLSearchParams({
       name: user1.user_name,
     });
     let getUserUrl = `${EZD_API_BASE_URL}/v1/user?${usp.toString()}`;
-    let getUserResp = await fetch(getUserUrl, {
-      headers: {
-        'Authorization': `Bearer ${apitestJwt}`,
-      },
-    });
+    let getUserResp = await hc.withJwt(apiJwt).get(getUserUrl);
     expect(getUserResp.status).toBe(404);
   });
 });

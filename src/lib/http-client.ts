@@ -18,32 +18,59 @@ const defaultHeaders: HeaderRecord = {
 Utility class that wraps fetch()
 _*/
 export class HttpClient {
-  async post(url: string, opts: HttpClientReqOpts = {}) {
+  private _token?: string;
+  private _headers: HeaderRecord;
+  private constructor(token?: string, headers?: HeaderRecord) {
+    this._token = token;
+    this._headers = headers ?? Object.assign({}, defaultHeaders);
+  }
+  static init(): HttpClient {
+    return new HttpClient();
+  }
+  post(url: string, opts: HttpClientReqOpts = {}): Promise<Response> {
     let reqInit: RequestInit = {
       method: 'POST',
-      headers: getHeadersOpt(opts),
+      headers: this.getHeadersOpt(opts),
       body: getBodyOpt(opts),
     };
     return fetch(url, reqInit);
   }
-  async get(url: string, opts: HttpClientReqOpts = {}) {
+  get(url: string, opts: HttpClientReqOpts = {}): Promise<Response> {
     let reqInit: RequestInit = {
-      headers: getHeadersOpt(opts),
+      headers: this.getHeadersOpt(opts),
       body: getBodyOpt(opts),
     };
-    if(opts.body !== undefined) {
-      reqInit.body = JSON.stringify(opts.body);
-    }
     return fetch(url, reqInit);
   }
-}
-
-function getHeadersOpt(opts: HttpClientReqOpts): HttpClientReqOpts['headers'] {
-  let headers = Object.assign({}, defaultHeaders, opts.headers);
-  if(opts.authToken !== undefined) {
-    headers['Authorization'] = `Bearer ${opts.authToken}`;
+  delete(url: string, opts: HttpClientReqOpts = {}): Promise<Response> {
+    opts.headers ??= {};
+    /* explicitly set to undefined so the default gets unset if present _*/
+    opts.headers['Content-Type'] ??= undefined;
+    let reqInit: RequestInit = {
+      method: 'DELETE',
+      headers: this.getHeadersOpt(opts),
+      body: getBodyOpt(opts),
+    };
+    return fetch(url, reqInit);
   }
-  return headers;
+  withJwt(token?: string | undefined): HttpClient {
+    // create a copy of the current client with the desired token
+    return new HttpClient(token, this._headers);
+  }
+  private getHeadersOpt(opts: HttpClientReqOpts): HttpClientReqOpts['headers'] {
+    let headers = Object.assign({}, this._headers, opts.headers);
+    /* delete undefined entries _*/
+    for(let k in headers) {
+      if(headers[k] === undefined) {
+        delete headers[k];
+      }
+    }
+    if(opts.authToken !== undefined || this._token !== undefined) {
+      let token = opts.authToken ?? this._token;
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }
 }
 
 function getBodyOpt(opts: HttpClientReqOpts): RequestInit['body'] {
