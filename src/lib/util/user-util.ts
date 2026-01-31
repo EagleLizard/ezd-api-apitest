@@ -18,8 +18,12 @@ export const userUtil = {
   getTestPw,
 } as const;
 
-function getTestUsername(): string {
-  return `apitest_${datetimeUtil.alphaNumericDateTime()}_${testUserCount++}`;
+/*
+suffix should be unique per suite to prevent collisions during parallel setup
+_*/
+function getTestUsername(suffix: string): string {
+  let testUsername = `apitest_${datetimeUtil.alphaNumericDateTime()}_${suffix}_${testUserCount++}`;
+  return testUsername;
 }
 function getTestPw(): string {
   return `pw+${datetimeUtil.alphaNumericDateTime()}+${testPwCount++}`;

@@ -15,3 +15,11 @@ export type NoIndex<T> = {
         : K
   ]: T[K];
 };
+
+/*
+  for more complex indices
+   see: https://stackoverflow.com/a/68261113/4677252
+_*/
+export type NoIndex2<R> = {
+  [K in keyof R as {} extends Record<K, 1> ? never : K]: R[K];
+};

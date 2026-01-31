@@ -13,6 +13,7 @@ import { HttpClient } from '../lib/http-client';
 import { userUtil } from '../lib/util/user-util';
 
 const { EZD_API_BASE_URL } = apitestConfig;
+const username_suffix = 'user';
 
 describe('user tests', () => {
   let hc: HttpClient;
@@ -29,11 +30,11 @@ describe('user tests', () => {
   });
 
   beforeAll(async () => {
-    hc ??= HttpClient.init().withJwt(apiJwt);
     apiUser = globalThis.ezdCtx.apiUser;
     apiJwt = authUtil.getJwt(apiUser.user_id);
+    hc ??= HttpClient.init().withJwt(apiJwt);
 
-    user1Name = userUtil.getTestUsername();
+    user1Name = userUtil.getTestUsername(username_suffix);
     user1Email = `ezdapitest+${user1Name}@gmail.com`;
 
     user1 = await userUtil.createUser(user1Name, user1Email);
@@ -58,6 +59,108 @@ describe('user tests', () => {
     expect(respBody.user.user_id).toBe(apiUser.user_id);
   });
 
+  test('get users returns user list', async () => {
+    let getUserResp = await hc.withJwt(apiJwt).get(`${EZD_API_BASE_URL}/v1/user`);
+    expect(getUserResp.status).toBe(200);
+    let rawResp = await getUserResp.json();
+    assert(Array.isArray(rawResp) && rawResp.every(prim.isObject));
+    for(let i = 0; i < rawResp.length; i++) {
+      expect(rawResp[i].user).toBeDefined();
+      expect(rawResp[i].permissions).toBeUndefined();
+      expect(rawResp[i].roles).toBeUndefined();
+    }
+  });
+
+  test('get user with permissions has permissions', async () => {
+    assert(user1 !== undefined);
+    let qsp = new URLSearchParams({
+      name: user1.user_name,
+      permissions: 'true',
+    });
+    let getUserResp = await hc.withJwt(apiJwt)
+      .get(`${EZD_API_BASE_URL}/v1/user?${qsp.toString()}`);
+    expect(getUserResp.status).toBe(200);
+    let rawResp = await getUserResp.json();
+    assert(prim.isObject(rawResp));
+    expect(rawResp.permissions).toBeDefined();
+    expect(rawResp.roles).toBeUndefined();
+    assert(Array.isArray(rawResp.permissions));
+    let permissions = rawResp.permissions.map(ezdPermissionSchema.decode);
+    expect(permissions.find((perm => perm.name === 'user.basic'))).toBeDefined();
+    expect(permissions.find((perm => perm.name === 'user.mgmt'))).toBeUndefined();
+  });
+
+  test('get user with roles has roles', async () => {
+    assert(user1 !== undefined);
+    let qsp = new URLSearchParams({
+      name: user1.user_name,
+      roles: 'true',
+    });
+    let getUserResp = await hc.withJwt(apiJwt)
+      .get(`${EZD_API_BASE_URL}/v1/user?${qsp.toString()}`);
+    expect(getUserResp.status).toBe(200);
+    let rawResp = await getUserResp.json();
+    assert(prim.isObject(rawResp));
+    expect(rawResp.permissions).toBeUndefined();
+    expect(rawResp.roles).toBeDefined();
+    assert(Array.isArray(rawResp.roles));
+    let roles = rawResp.roles.map(EzdRoleSchema.decode);
+    expect(roles.find((perm => perm.name === 'Default'))).toBeDefined();
+    expect(roles.find((perm => perm.name === 'ServerAdmin'))).toBeUndefined();
+  });
+
+  test('get users returns users without roles/permissions for non-privileged user', async () => {
+    assert(user1 !== undefined);
+    let qsp = new URLSearchParams({
+      roles: 'true',
+      permissions: 'true',
+    });
+    let user1Jwt = authUtil.getJwt(user1.user_id);
+    let getUsersResp = await hc.withJwt(user1Jwt)
+      .get(`${EZD_API_BASE_URL}/v1/user?${qsp.toString()}`);
+    expect(getUsersResp.status).toBe(200);
+    let rawResp = await getUsersResp.json();
+    assert(Array.isArray(rawResp) && rawResp.every(prim.isObject));
+    for(let i = 0; i < rawResp.length; i++) {
+      let respItem = rawResp[i];
+      expect(respItem.user).toBeDefined();
+      expect(respItem.permissions).toBeUndefined();
+      expect(respItem.roles).toBeUndefined();
+    }
+  });
+
+  test('get user returns roles without permissions', async () => {
+    let qsp = new URLSearchParams({
+      name: apiUser.user_name,
+      roles: 'true',
+    });
+    let url = `${EZD_API_BASE_URL}/v1/user?${qsp.toString()}`;
+
+    let getUsersResp = await hc.withJwt(apiJwt).get(url);
+    expect(getUsersResp.status).toBe(200);
+    let rawResp = await getUsersResp.json();
+    assert(prim.isObject(rawResp) && Array.isArray(rawResp.roles));
+    let roles = rawResp.roles.map(EzdRoleSchema.decode);
+    expect(roles.find(role => role.name === 'NoPermissions')).toBeDefined();
+  });
+
+  test('get users returns roles without permissions', async () => {
+    let qsp = new URLSearchParams({ roles: 'true' });
+    let url = `${EZD_API_BASE_URL}/v1/user?${qsp.toString()}`;
+
+    let getUsersResp = await hc.withJwt(apiJwt).get(url);
+    expect(getUsersResp.status).toBe(200);
+    let rawResp = await getUsersResp.json();
+    assert(Array.isArray(rawResp) && rawResp.every(prim.isObject));
+    let apiUserRespItem = rawResp.find((respItem) => {
+      return prim.isObject(respItem.user) && respItem.user.user_id === apiUser.user_id;
+    });
+    assert(apiUserRespItem !== undefined);
+    assert(Array.isArray(apiUserRespItem.roles));
+    let apiUserRoles = apiUserRespItem.roles.map(EzdRoleSchema.decode);
+    expect(apiUserRoles.find(role => role.name === 'NoPermissions')).toBeDefined();
+  });
+
   test('tests get users with name param returns user with name', async () => {
     assert(user1 !== undefined);
     let qsp = new URLSearchParams({
@@ -78,20 +181,19 @@ describe('user tests', () => {
     let testUserJwt = authUtil.getJwt(user1.user_id);
     let usp = new URLSearchParams({
       name: user1.user_name,
+      permissions: 'true',
+      roles: 'true',
     });
     let url = `${EZD_API_BASE_URL}/v1/user?${usp.toString()}`;
     let getUserResp = await hc.withJwt(testUserJwt).get(url);
     expect(getUserResp.status).toBe(200);
     let getUserRawResp = await getUserResp.json();
-    assert(prim.isObject(getUserRawResp));
-    assert(Array.isArray(getUserRawResp.roles));
+    assert(prim.isObject(getUserRawResp) && Array.isArray(getUserRawResp.roles));
     let userRoles = getUserRawResp.roles.map(EzdRoleSchema.decode);
-    let defaultRole = userRoles.find(userRole => userRole.name === 'Default');
-    expect(defaultRole).toBeDefined();
+    expect(userRoles.find(userRole => userRole.name === 'Default')).toBeDefined();
     assert(Array.isArray(getUserRawResp.permissions));
     let userPermissions = getUserRawResp.permissions.map(ezdPermissionSchema.decode);
-    let basicPermission = userPermissions.find(userPerm => userPerm.name === 'user.basic');
-    expect(basicPermission).toBeDefined();
+    expect(userPermissions.find(userPerm => userPerm.name === 'user.basic')).toBeDefined();
   });
 
   test(`new user has 'Default' role only`, async () => {

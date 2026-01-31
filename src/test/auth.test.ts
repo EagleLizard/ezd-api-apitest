@@ -12,6 +12,8 @@ import { userUtil } from '../lib/util/user-util';
 
 const { EZD_API_BASE_URL } = apitestConfig;
 
+const uname_suffix = 'auth';
+
 describe('auth tests', () => {
   let hc: HttpClient;
   let apiJwt: string;
@@ -44,13 +46,13 @@ describe('auth tests', () => {
     apiJwt = authUtil.getJwt(apiUser.user_id);
     hc = HttpClient.init().withJwt(apiJwt);
 
-    registerUserName = userUtil.getTestUsername();
+    registerUserName = userUtil.getTestUsername(uname_suffix);
     registerUserEmail = `ezdapitest+${registerUserName}@gmail.com`;
     registerUserPw = userUtil.getTestPw();
 
-    user1Name = userUtil.getTestUsername();
+    user1Name = userUtil.getTestUsername(uname_suffix);
     user1Email = `ezdapitest+${user1Name}@gmail.com`;
-    user2Name = userUtil.getTestUsername();
+    user2Name = userUtil.getTestUsername(uname_suffix);
     user2Email = `ezdapitest+${user2Name}@gmail.com`;
 
     user1 = await userUtil.createUser(user1Name, user1Email);
