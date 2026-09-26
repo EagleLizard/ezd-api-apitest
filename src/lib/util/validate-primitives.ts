@@ -5,7 +5,13 @@ export const prim = {
   isPromise: isPromise,
 
   isArrayBuffer: isArrayBuffer,
+
+  arr: isArray,
 } as const;
+
+function isArray(val: unknown): val is unknown[] {
+  return Array.isArray(val);
+}
 
 function isArrayBuffer(val: unknown): val is ArrayBuffer {
   return val instanceof ArrayBuffer;
