@@ -16,7 +16,7 @@ export const EzdRoleSchema = {
 } as const;
 
 function decodeEzdRole(val: unknown): EzdRole {
-  return tbUtil.decodeWithSchema(EzdRoleTSchema, val);
+  return tbUtil.decodeWithSchema<typeof EzdRoleTSchema, EzdRole>(EzdRoleTSchema, val);
 }
 
 const EzdRoleDtoTSchema = Type.Object({
@@ -32,5 +32,5 @@ export const EzdRoleDto = {
 } as const;
 
 function decodeEzdRoleDto(rawVal: unknown): EzdRoleDto {
-  return tbUtil.decodeWithSchema(EzdRoleDtoTSchema, rawVal);
+  return tbUtil.decodeWithSchema<typeof EzdRoleDtoTSchema, EzdRoleDto>(EzdRoleDtoTSchema, rawVal);
 }

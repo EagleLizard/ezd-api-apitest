@@ -9,8 +9,8 @@ _*/
   "compilerOptions": {
     // "target": "ES2022",
     "target": "ESNext",
-    "module": "esnext",
-    "moduleResolution": "node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "lib": [
       "ESNext", // for Array.toSorted,
       // "DOM" // for HeadersInit

@@ -13,6 +13,6 @@ export const EzdUser = {
 } as const;
 
 function decodeEzdUser(rawVal: unknown): EzdUser {
-  return tbUtil.decodeWithSchema(EzdUserTSchema, rawVal);
+  return tbUtil.decodeWithSchema<typeof EzdUserTSchema, EzdUser>(EzdUserTSchema, rawVal);
 }
 

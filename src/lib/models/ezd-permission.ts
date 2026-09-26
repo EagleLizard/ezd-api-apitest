@@ -14,5 +14,8 @@ export const ezdPermissionSchema = {
 } as const;
 
 function decodeEzdPermission(val: unknown): EzdPermission {
-  return tbUtil.decodeWithSchema(EzdPermissionTSchema, val);
+  return tbUtil.decodeWithSchema<
+    typeof EzdPermissionTSchema,
+    EzdPermission
+  >(EzdPermissionTSchema, val);
 }
