@@ -1,4 +1,6 @@
 
+import assert from 'node:assert';
+
 export const prim = {
   isObject: isObject,
   isString: isString,
@@ -7,6 +9,9 @@ export const prim = {
   isArrayBuffer: isArrayBuffer,
 
   arr: isArray,
+  obj: isObject,
+  str: isString,
+  bool: isBoolean,
 } as const;
 
 function isArray(val: unknown): val is unknown[] {
@@ -27,6 +32,10 @@ function isObject(val: unknown): val is Record<string | number, unknown> {
 
 function isString(val: unknown): val is string {
   return (typeof val) === 'string';
+}
+
+function isBoolean(val: unknown): val is boolean {
+  return (typeof val) === 'boolean';
 }
 
 export function isPromise<T>(val: unknown): val is Promise<T> {

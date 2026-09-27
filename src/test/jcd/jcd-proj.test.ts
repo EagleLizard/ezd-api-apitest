@@ -17,7 +17,7 @@ describe('jcd-proj tests', () => {
 
   let jcd_env: string;
   beforeEach(() => {
-    hc = HttpClient.init();
+    hc = HttpClient.init().withJwt(apiJwt);
     jcd_env = jcdConf.default_env_id;
   });
 
@@ -27,9 +27,8 @@ describe('jcd-proj tests', () => {
   });
 
   test('get projects', async () => {
-    let usp = new URLSearchParams({ env: jcd_env });
-    let url = `${EZD_API_BASE_URL}/v1/jcd/project?${usp.toString()}`;
-    let resp = await hc.withJwt(apiJwt).get(url);
+    let url = `${EZD_API_BASE_URL}/v1/jcd/project`;
+    let resp = await hc.get(url, { qs: { env: jcd_env } });
     expect(resp.status).toBe(200);
     let rawBody = await resp.json();
     assert(Array.isArray(rawBody));
@@ -43,9 +42,8 @@ describe('jcd-proj tests', () => {
     });
   });
   test('get project previews', async () => {
-    let usp = new URLSearchParams({ env: jcd_env, preview: 'true' });
-    let url = `${EZD_API_BASE_URL}/v1/jcd/project?${usp.toString()}`;
-    let resp = await hc.withJwt(apiJwt).get(url);
+    let url = `${EZD_API_BASE_URL}/v1/jcd/project`;
+    let resp = await hc.get(url, { qs: { env: jcd_env, preview: true }});
     expect(resp.status).toBe(200);
     let rawBody = await resp.json();
     assert(prim.arr(rawBody));
@@ -56,9 +54,8 @@ describe('jcd-proj tests', () => {
     });
   });
   test('get project by route', async () => {
-    let previewsUsp = new URLSearchParams({ env: jcd_env, preview: 'true' });
-    let previewsUrl = `${EZD_API_BASE_URL}/v1/jcd/project?${previewsUsp.toString()}`;
-    let previewsResp = await hc.withJwt(apiJwt).get(previewsUrl);
+    let previewsUrl = `${EZD_API_BASE_URL}/v1/jcd/project`;
+    let previewsResp = await hc.get(previewsUrl, { qs: { env: jcd_env, preview: true } });
     expect(previewsResp.status).toBe(200);
     let rawPreviewsBody = await previewsResp.json();
     assert(prim.arr(rawPreviewsBody));
@@ -67,9 +64,8 @@ describe('jcd-proj tests', () => {
     assert(prim.isString(projPrev.route));
     let projRoute = projPrev.route;
 
-    let usp = new URLSearchParams({ env: jcd_env, route: projRoute });
-    let url = `${EZD_API_BASE_URL}/v1/jcd/project?${usp.toString()}`;
-    let resp = await hc.withJwt(apiJwt).get(url);
+    let url = `${EZD_API_BASE_URL}/v1/jcd/project`;
+    let resp = await hc.get(url, { qs: { env: jcd_env, route: projRoute } });
     expect(resp.status).toBe(200);
     let body = await resp.json();
     assert(prim.isObject(body));

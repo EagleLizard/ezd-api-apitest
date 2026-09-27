@@ -8,6 +8,7 @@ export type HttpClientReqOpts = {
   headers?: HeaderRecord;
   body?: unknown;
   bodyInit?: RequestInit['body'];
+  qs?: Record<string, string | number | boolean | bigint>;
 } & {};
 
 const defaultHeaders: HeaderRecord = {
@@ -36,6 +37,7 @@ export class HttpClient {
     return fetch(url, reqInit);
   }
   get(url: string, opts: HttpClientReqOpts = {}): Promise<Response> {
+    url = urlWithSearchParams(url, opts.qs);
     let reqInit: RequestInit = {
       headers: this.getHeadersOpt(opts),
       body: getBodyOpt(opts),
@@ -43,6 +45,7 @@ export class HttpClient {
     return fetch(url, reqInit);
   }
   delete(url: string, opts: HttpClientReqOpts = {}): Promise<Response> {
+    url = urlWithSearchParams(url, opts.qs);
     opts.headers ??= {};
     /* explicitly set to undefined so the default gets unset if present _*/
     opts.headers['Content-Type'] ??= undefined;
@@ -71,6 +74,22 @@ export class HttpClient {
     }
     return headers;
   }
+}
+
+function urlWithSearchParams(urlStr: string, qs?: HttpClientReqOpts['qs']): string {
+  if(qs === undefined) {
+    return urlStr;
+  }
+  let qsKeys = Object.keys(qs);
+  if(qsKeys.length < 1) {
+    return urlStr;
+  }
+  let url = new URL(urlStr);
+  let searchParams = url.searchParams;
+  qsKeys.forEach(qsKey => {
+    searchParams.append(qsKey, `${qs[qsKey]}`);
+  });
+  return url.href;
 }
 
 function getBodyOpt(opts: HttpClientReqOpts): RequestInit['body'] {
